@@ -1,0 +1,40 @@
+
+name: Personal Organizer - calendar reminders
+
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Check upcoming reminders without sending'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-organizer-calendar-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Europe/Vilnius
+      PERSONAL_ORGANIZER_UID: ${{ vars.PERSONAL_ORGANIZER_UID }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Firebase Admin SDK
+        working-directory: scripts/reminders
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Check and send calendar reminders
+        run: node scripts/reminders/send-reminders.mjs
